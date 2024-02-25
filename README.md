@@ -1,53 +1,58 @@
-# OSRM Routing Engine Setup Guide
+# OSRM Routing Engine with Docker Compose Setup Guide
 
-This guide provides instructions on how to set up your own routing engine using OSRM (Open Source Routing Machine) with Docker for routing in England. OSRM is a C++ implementation of a high-performance routing engine for shortest paths in road networks. Leveraging Docker simplifies the setup process across different environments.
+This guide outlines the steps to set up your own routing engine using the Open Source Routing Machine (OSRM) with Docker Compose, focusing on routing in England. OSRM is a high-performance routing engine designed for shortest paths in road networks.
 
 ## Prerequisites
 
--   Docker installed on your system.
+-   Docker and Docker Compose installed on your system. Docker Compose is included with Docker Desktop for Windows and Mac. For Linux, Docker Compose might need to be installed separately.
 
-## Step 1: Download OpenStreetMap Data for England
+## Setup Instructions
 
-First, you need to download the OpenStreetMap (OSM) data for England. This data is used by OSRM to compute routes.
+### 1. Prepare the Data Directory
 
-```bash
-wget http://download.geofabrik.de/europe/great-britain/england-latest.osm.pbf
-```
+Ensure you have a `data` directory in the same location as your `docker-compose.yml` file. This directory should contain the OpenStreetMap (OSM) data file for England.
 
-## Step 2: Pre-process the Data with Docker
-
-OSRM requires the raw OSM data to be pre-processed into a routing graph. This is done in three stages: extraction, partitioning, and customization.
-
-1. **Extract** the OSM data using the car profile:
+If you haven't downloaded the data file yet, you can do so with the following command:
 
 ```bash
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/england-latest.osm.pb
+curl http://download.geofabrik.de/europe/great-britain/england-latest.osm.pbf -o ./data/england-latest.osm.pbf
 ```
 
-2. **Partition** the extracted data:
+### 2. Building the Map with OSRM
+
+Before using the OSRM routing engine, you need to process the raw OSM data. This involves extracting, partitioning, and customizing the data to be used by OSRM. A bash script named `build-map.sh` is provided for this purpose.
+
+To build the map, run the following commands:
 
 ```bash
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/england-latest.osrm
+chmod +x build-map.sh
+./build-map.sh
 ```
 
-3. **Customize** the partitioned data:
+### 3. Running Docker Compose
+
+Navigate to your project directory where the `docker-compose.yml` file is located and run the following command to start all services:
 
 ```bash
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/england-latest.osrm
+docker-compose up
 ```
 
-## Step 3: Start the Routing Engine HTTP Server
-
-With the data processed, you can now start the OSRM backend server. This server will listen for routing requests on port 5000.
+To run the services in the background, add the `-d` flag:
 
 ```bash
-docker run -t -i -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/england-latest.osrm
+docker-compose up -d
 ```
 
-## Step 4: Make Routing Requests
+### 4. Shutting Down
 
-With the server running, you can make HTTP requests to get routes. For example, to get a route in London:
+To stop and remove all the services started by Docker Compose, use:
 
 ```bash
-curl "http://127.0.0.1:5000/route/v1/driving/-0.127647,51.507321;-0.142555,51.507948?steps=true"
+docker-compose down
 ```
+
+To also remove the volumes and networks created by Docker Compose, add the `-v` flag:
+
+````bash
+docker-compose down -v```
+````

@@ -1,0 +1,18 @@
+version: "3.8"
+services:
+    osrm:
+        image: ghcr.io/project-osrm/osrm-backend
+        command: osrm-routed --algorithm mld /data/england-latest.osrm -l ERROR
+        volumes:
+            - ./data:/data
+        ports:
+            - "5001:5000"
+
+    server:
+        build: .
+        ports:
+            - "5002:5002"
+        environment:
+            - OSRM_URL=http://osrm:5000
+        depends_on:
+            - osrm
