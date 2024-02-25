@@ -53,6 +53,6 @@ docker-compose down
 
 To also remove the volumes and networks created by Docker Compose, add the `-v` flag:
 
-````bash
-docker-compose down -v```
-````
+```bash
+docker-compose down -v
+```
