@@ -12,6 +12,7 @@ cykhash==2.0.1
 Cython==3.0.8
 fiona==1.9.5
 Flask==3.0.2
+Flask-Cors==4.0.0
 frozenlist==1.4.1
 geopandas==0.14.3
 gunicorn==21.2.0

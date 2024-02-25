@@ -1,2 +1,22 @@
 /.DS_Store
 /data
+
+# build output
+/site/dist/
+# generated types
+/site/.astro/
+
+# dependencies
+/site/node_modules/
+/site/package-lock.json
+
+# logs
+/site/npm-debug.log*
+/site/yarn-debug.log*
+/site/yarn-error.log*
+/site/pnpm-debug.log*
+
+
+# environment variables
+/site/.env
+/site/.env.production

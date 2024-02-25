@@ -1,0 +1,99 @@
+---
+
+---
+
+<div id="map-container" class="w-screen h-screen"></div>
+<div id="geocoder" class="geocoder fixed top-4 left-4 z-10"></div>
+
+<script>
+	import mapboxgl from "mapbox-gl";
+	import { lineString, featureCollection } from "@turf/turf";
+
+	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
+	const MAPBOX_STYLE = "mapbox://styles/mapbox/dark-v11";
+	mapboxgl.accessToken = MAPBOX_TOKEN;
+
+	const map = new mapboxgl.Map({
+		container: "map-container",
+		style: MAPBOX_STYLE,
+		center: [-1.4, 52.6],
+		zoom: 7.5,
+		antialias: true,
+		projection: { name: "mercator" },
+	});
+
+	function animateLine(line) {
+		const lineCoordinates = line.geometry.coordinates;
+		let i = 0;
+		function animate() {
+			if (i < lineCoordinates.length) {
+				const source = map.getSource(
+					"line-animation"
+				) as mapboxgl.GeoJSONSource;
+				source.setData(lineString(lineCoordinates.slice(0, i + 1)));
+				i++;
+				requestAnimationFrame(animate);
+			}
+		}
+		animate();
+	}
+
+	async function updateBusData() {
+		const response = await fetch("http://127.0.0.1:5002/download");
+		const rawData = (await response.json()) as Record<
+			string,
+			[number, number][]
+		>;
+
+		const features = Object.entries(rawData).map(([key, value]) => {
+			const points = value.map(([lat, lon]) => [lon, lat]);
+			return lineString(points, { id: key });
+		});
+
+		const geojsonData = featureCollection(features);
+
+		const source = map.getSource("bus-routes");
+		if (source?.type === "geojson") {
+			(source as mapboxgl.GeoJSONSource).setData(geojsonData);
+		} else {
+			map.addSource("bus-routes", {
+				type: "geojson",
+				data: geojsonData,
+			});
+		}
+
+		if (!map.getLayer("bus-routes-layer")) {
+			map.addLayer({
+				id: "bus-routes-layer",
+				type: "line",
+				source: "bus-routes",
+				layout: { "line-join": "round", "line-cap": "round" },
+				paint: {
+					"line-color": "#FD805D",
+					"line-width": 5,
+					"line-opacity": 0.8,
+				},
+			});
+		}
+
+		// Animate the first line as an example
+		animateLine(features[0]);
+	}
+
+	map.on("load", () => {
+		map.addSource("line-animation", {
+			type: "geojson",
+			data: {
+				type: "Feature",
+				properties: {},
+				geometry: {
+					type: "LineString",
+					coordinates: [],
+				},
+			},
+		});
+
+		updateBusData();
+		setInterval(updateBusData, 10000); // Update data every 10 seconds
+	});
+</script>

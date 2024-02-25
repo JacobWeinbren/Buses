@@ -10,6 +10,7 @@ from io import BytesIO
 from zipfile import ZipFile
 import ujson
 from flask import Flask, send_file
+from flask_cors import CORS
 import os
 
 # Base URL for OSRM routing service
@@ -28,27 +29,6 @@ async def make_request(session, start, end):
         return None
 
 
-# Interpolate points for simplified path using numpy for efficiency
-def interpolate_points(points, num_points=5):
-    points_array = np.array(points)
-    original_length = len(points)
-
-    if original_length == num_points:
-        return np.round(points_array, 5).tolist()
-    elif original_length > num_points:
-        indices = np.round(np.linspace(0, original_length - 1, num_points)).astype(int)
-        return np.round(points_array[indices], 5).tolist()
-    else:
-        new_points = np.zeros((num_points, 2))
-        for i in range(2):
-            new_points[:, i] = np.interp(
-                np.linspace(0, original_length - 1, num_points),
-                np.arange(original_length),
-                points_array[:, i],
-            )
-        return np.round(new_points, 5).tolist()
-
-
 # Perform batch requests to OSRM
 async def batch_request(locations, previous_locations, batch_size=100):
     results = {}
@@ -65,7 +45,10 @@ async def batch_request(locations, previous_locations, batch_size=100):
                 if result:
                     bus_id = tasks[i + j][0]
                     points = polyline.decode(result["routes"][0]["geometry"])
-                    results[bus_id] = interpolate_points(points, 10)
+                    rounded_points = [
+                        (round(lat, 5), round(lon, 5)) for lat, lon in points
+                    ]
+                    results[bus_id] = rounded_points
     return results
 
 
@@ -84,15 +67,26 @@ async def download_and_extract_coordinates(url):
                         for vehicle_activity in root.findall(
                             ".//ns:VehicleActivity", ns
                         ):
+                            origin_ref = vehicle_activity.find(".//ns:OriginRef", ns)
+                            destination_ref = vehicle_activity.find(
+                                ".//ns:DestinationRef", ns
+                            )
                             vehicle_ref = vehicle_activity.find(".//ns:VehicleRef", ns)
                             location = vehicle_activity.find(
                                 ".//ns:VehicleLocation", ns
                             )
-                            if vehicle_ref is not None and location is not None:
+                            if (
+                                origin_ref is not None
+                                and destination_ref is not None
+                                and vehicle_ref is not None
+                                and location is not None
+                            ):
                                 latitude = location.find(".//ns:Latitude", ns)
                                 longitude = location.find(".//ns:Longitude", ns)
                                 if latitude is not None and longitude is not None:
-                                    coordinates[vehicle_ref.text] = (
+                                    # Combine OriginRef, DestinationRef, and VehicleRef to form a unique ID
+                                    unique_id = f"{origin_ref.text}_{destination_ref.text}_{vehicle_ref.text}"
+                                    coordinates[unique_id] = (
                                         float(latitude.text),
                                         float(longitude.text),
                                     )
@@ -118,6 +112,7 @@ async def main():
 
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route("/download")
