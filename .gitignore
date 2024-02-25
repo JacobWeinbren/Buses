@@ -20,3 +20,6 @@
 # environment variables
 /site/.env
 /site/.env.production
+
+*.osm.pbf
+/test

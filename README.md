@@ -15,44 +15,10 @@ Ensure you have a `data` directory in the same location as your `docker-compose.
 If you haven't downloaded the data file yet, you can do so with the following command:
 
 ```bash
-curl http://download.geofabrik.de/europe/great-britain/england-latest.osm.pbf -o ./data/england-latest.osm.pbf
+curl -O https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/8.0/graphhopper-web-8.0.jar -O https://raw.githubusercontent.com/graphhopper/graphhopper/8.x/config-example.yml -O http://download.geofabrik.de/europe/great-britain/england-latest.osm.pbf
+java -D"dw.graphhopper.datareader.file=england-latest.osm.pbf" -jar graphhopper*.jar server config-example.yml
 ```
 
-### 2. Building the Map with OSRM
-
-Before using the OSRM routing engine, you need to process the raw OSM data. This involves extracting, partitioning, and customizing the data to be used by OSRM. A bash script named `build-map.sh` is provided for this purpose.
-
-To build the map, run the following commands:
-
 ```bash
-chmod +x build-map.sh
-./build-map.sh
-```
-
-### 3. Running Docker Compose
-
-Navigate to your project directory where the `docker-compose.yml` file is located and run the following command to start all services:
-
-```bash
-docker-compose up
-```
-
-To run the services in the background, add the `-d` flag:
-
-```bash
-docker-compose up -d
-```
-
-### 4. Shutting Down
-
-To stop and remove all the services started by Docker Compose, use:
-
-```bash
-docker-compose down
-```
-
-To also remove the volumes and networks created by Docker Compose, add the `-v` flag:
-
-```bash
-docker-compose down -v
+python server.py
 ```

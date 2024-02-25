@@ -13,17 +13,25 @@ from flask import Flask, send_file
 from flask_cors import CORS
 import os
 
-# Base URL for OSRM routing service
-osrm_url = os.getenv("OSRM_URL", "http://127.0.0.1:5001") + "/route/v1/driving/"
+# Base URL for GraphHopper routing service
+graphhopper_url = os.getenv("GRAPHHOPPER_URL", "http://localhost:8989") + "/route"
 
 
-# Async request to OSRM for routing
+# Async request to GraphHopper for routing
 async def make_request(session, start, end):
-    coordinates = f"{start[1]},{start[0]};{end[1]},{end[0]}"
-    request_url = f"{osrm_url}{coordinates}?steps=true"
+    coordinates = f"point={start[0]},{start[1]}&point={end[0]},{end[1]}"
+    request_url = (
+        f"{graphhopper_url}?{coordinates}&locale=en&points_encoded=false&profile=car"
+    )
     try:
         async with session.get(request_url) as response:
-            return await response.json() if response.status == 200 else None
+            if response.status == 200:
+                data = await response.json()
+                # Assuming you want to extract the polyline from the first route
+                if data["paths"] and "points" in data["paths"][0]:
+                    points = data["paths"][0]["points"]["coordinates"]
+                    return points  # Directly return the decoded polyline points
+            return None
     except aiohttp.ClientError as e:
         print(f"Request failed: {e}")
         return None
@@ -44,9 +52,9 @@ async def batch_request(locations, previous_locations, batch_size=100):
             for j, result in enumerate(batch_results):
                 if result:
                     bus_id = tasks[i + j][0]
-                    points = polyline.decode(result["routes"][0]["geometry"])
+                    # Since make_request now returns the points directly, no need to decode
                     rounded_points = [
-                        (round(lat, 5), round(lon, 5)) for lat, lon in points
+                        (round(lat, 5), round(lon, 5)) for lat, lon in result
                     ]
                     results[bus_id] = rounded_points
     return results
@@ -108,7 +116,7 @@ async def main():
         )
         previous_locations = locations
         print("Waiting for next update...")
-        await asyncio.sleep(10)
+        await asyncio.sleep(60)
 
 
 app = Flask(__name__)
